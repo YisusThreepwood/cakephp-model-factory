@@ -1,6 +1,6 @@
 {
     "name": "chustilla/cakephp-model-factory",
-    "description": "An easy to use Fractal integration for CakePHP 3 applications",
+    "description": "An easy for rapid creation of models for the purpose of testing, inspired by Laravel Model Factory.",
     "keywords": [
         "model factory",
         "testing",
