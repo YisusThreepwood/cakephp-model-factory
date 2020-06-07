@@ -1,14 +1,15 @@
 {
-    "name": "chustilla/php-model-factory",
+    "name": "chustilla/cakephp-model-factory",
     "description": "An easy to use Fractal integration for CakePHP 3 applications",
     "keywords": [
         "model factory",
         "testing",
-        "tests"
+        "tests",
+        "cakephp"
     ],
     "type": "library",
     "license": "MIT",
-    "homepage": "https://github.com/chustilla/php-model-factory",
+    "homepage": "https://github.com/chustilla/cakephp-model-factory",
     "authors": [
         {
             "name": "Jesus Hernando Sancha",
