@@ -25,7 +25,7 @@
     "prefer-stable": true,
     "require": {
         "league/factory-muffin": "~2.0",
-        "symfony/finder": "^5.1",
+        "symfony/finder": ">=4.0",
         "cakephp/cakephp": "~3.7"
     }
 }
