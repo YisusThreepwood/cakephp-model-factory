@@ -3,14 +3,12 @@
 namespace Chustilla\ModelFactory;
 
 use Cake\ORM\Entity;
-use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
-use Cake\Utility\Inflector;
 use Chustilla\ModelFactory\Exceptions\DefinitionNotFoundException;
 use Chustilla\ModelFactory\Exceptions\DuplicateDefinitionException;
-use Chustilla\ModelFactory\Exceptions\InvalidModelException;
-use Chustilla\ModelFactory\Exceptions\ModelNotFoundException;
+use Chustilla\ModelFactory\Exceptions\ModelStateNotFoundException;
 use Symfony\Component\Finder\Finder;
+use Faker\Factory as Faker;
 
 class Factory
 {
@@ -19,10 +17,15 @@ class Factory
     private $currentDefinition;
     private $repositoriesForTruncating = [];
     private $faker;
+    private $states = [];
+    /**
+     * @var array|string
+     */
+    private $currentStates = [];
 
     private function __construct()
     {
-        $this->faker = \Faker\Factory::create();
+        $this->faker = Faker::create();
     }
 
     public static function getInstance(): self
@@ -48,113 +51,63 @@ class Factory
 
     /**
      * @param string $class
-     * @param callable $attributes
+     * @param array|callable $attributes
      * @return $this
      * @throws DuplicateDefinitionException
      */
-    public function define(string $class, callable $attributes): self
+    public function define(string $class, $attributes): self
     {
         if ($this->hasDefinition($class)) {
             throw new DuplicateDefinitionException($class);
         }
 
-        $this->definitions[$class] = call_user_func($attributes, $this->faker);
+        $this->definitions[$class] = $attributes;
+        return $this;
+    }
+
+    private function hasDefinition(string $definitionName): bool
+    {
+        return array_key_exists($definitionName, $this->definitions);
+    }
+
+    public function state(string $definition, string $stateName, $attributes): self
+    {
+        if (!isset($this->states[$definition])) {
+            $this->states[$definition] = [];
+        }
+        $this->states[$definition][$stateName] = $attributes;
+
         return $this;
     }
 
     /**
      * @param array|null $attributes
      * @return Entity
-     * @throws ModelNotFoundException|InvalidModelException
+     * @throws Exceptions\ModelNotFoundException
      */
     public function create(?array $attributes = [])
     {
-        $model = $this->make($attributes);
-        $this->persist($model);
-
-        return $model;
-    }
-
-    /**
-     * @param array|null $attributes
-     * @return Entity
-     * @throws ModelNotFoundException|InvalidModelException
-     */
-    public function make(?array $attributes = []): Entity
-    {
-        $model = $this->makeModel($this->currentDefinition);
-        $this->setModelAttributes($model, $attributes);
-
-        return $model;
-    }
-
-    /**
-     * @param string $class
-     * @return Entity
-     * @throws ModelNotFoundException
-     */
-    private function makeModel(string $class): Entity
-    {
-        if(!class_exists($class)) {
-            throw new ModelNotFoundException($class);
-        }
-
-        return new $class();
-    }
-
-    private function setModelAttributes(Entity $model, ?array $attributes = [])
-    {
-        $attr = array_merge($this->getAttributesFromCurrentDefinition(), $attributes);
-        foreach ($attr as $name => $value) {
-            $this->setModelAttribute($model, $name, $value);
-        }
-    }
-
-    private function getAttributesFromCurrentDefinition(): array
-    {
-        return $this->definitions[$this->currentDefinition];
-    }
-
-    private function setModelAttribute(Entity $model, string $attribute, $value)
-    {
-        $model->{$attribute} = $value;
-    }
-
-    /**
-     * @param Entity $model
-     * @return Entity
-     * @throws InvalidModelException
-     */
-    private function persist(Entity $model): Entity
-    {
-        $repository = $this->getRepositoryFor($model);
+        $statesToApply = $this->currentStates;
+        $model = (new ModelBuilder(
+            $this->currentDefinition,
+            $this->definitions[$this->currentDefinition],
+            $this->faker,
+            array_filter(
+                $statesToApply ? $this->states[$this->currentDefinition] : [],
+                function (string $stateName) use ($statesToApply){
+                    return  in_array($stateName, $statesToApply);
+                },
+                ARRAY_FILTER_USE_KEY
+            )
+        ))->create($attributes);
         $this->addTableForTruncatingFrom($model);
-        $repository->save($model);
+
         return $model;
-    }
-
-    /**
-     * @param Entity $model
-     * @return Table
-     * @throws InvalidModelException
-     */
-    private function getRepositoryFor(Entity $model): Table
-    {
-        $repositoryAlias = $this->getRepositoryAliasFrom($model);
-
-        return TableRegistry::getTableLocator()->get($repositoryAlias);
-    }
-
-    private function getRepositoryAliasFrom(Entity $model): string
-    {
-        return Inflector::pluralize(
-            (new \ReflectionClass(get_class($model)))->getShortName()
-        );
     }
 
     private function addTableForTruncatingFrom(Entity $model): void
     {
-        $repository = $this->getRepositoryAliasFrom($model);
+        $repository = repositoryAlias($model);
         if (!in_array($repository, $this->repositoriesForTruncating)) {
             $this->repositoriesForTruncating[] = $repository;
         }
@@ -171,12 +124,27 @@ class Factory
             throw new DefinitionNotFoundException($class);
         }
         $this->currentDefinition = $class;
+        $this->currentStates = [];
         return $this;
     }
 
-    private function hasDefinition(string $definitionName): bool
+    /**
+     * @param array|string $states
+     * @return $this
+     * @throws ModelStateNotFoundException
+     */
+    public function states($states): self
     {
-        return array_key_exists($definitionName, $this->definitions);
+        $statesArray = is_array($states) ? $states : [$states];
+        foreach ($statesArray as $state) {
+            if (!isset($this->states[$this->currentDefinition][$state])) {
+                throw new ModelStateNotFoundException($this->currentDefinition, $state);
+            }
+        }
+
+        $this->currentStates = $statesArray;
+
+        return $this;
     }
 
     public function cleanUpData()

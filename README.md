@@ -27,16 +27,14 @@ An example of model definition would be...
 
 use App\Model\Entity\Bar;
 
-$factory->define(Bar::class, function () {
-    return [
-        'id' => 123,
-        'name' => 'Guybrush Threepwood',
-    ];
-});
+$factory->define(Bar::class, [
+    'id' => 123,
+    'name' => 'Guybrush Threepwood',
+]);
 ```
 
 That is an unusual model definition because it would create all entity instances with the same data.
-For more useful use you can use the [Faker](https://github.com/fzaninotto/Faker) library this way
+Usually you need compute data or use [Faker](https://github.com/fzaninotto/Faker) library for fake data, in that case you can use a Closure for defining model attributes
 
 ```php
 <?php
@@ -89,7 +87,7 @@ class FooServiceTest extends TestCase
 ```
 
 That will create a full populate entity and save it in the datasurce defined for testing.
-If you don't need save the data you can use the *make()* method
+If you don't need to persist the data you can use the *make()* method
 
 ```php
 $bar = factory(Bar::class)->make();
@@ -100,6 +98,38 @@ By passing an array of attributes to *create()* or *make()* functions you can ov
 
 ```php
 $bar = factory(Bar::class)->make(['id' => 1, 'name' => 'LeChuck']);
+```
+
+### States
+By states, you can define discrete modifications to the model attributes.
+
+```php
+<?php
+
+use App\Model\Entity\Bar;
+use App\Model\Entity\Foo;
+use Faker\Generator as Faker;
+
+$factory->define(Bar::class, function (Faker $faker) {
+    return [
+        'id' =>  $faker->numberBetween(1, 1000),
+        'name' => $faker->name,
+    ];
+});
+
+$factory->state(Bar::class, 'withFoo', function () {
+    return [
+        foo => factory(Foo::class)->create(),
+    ];
+});
+```
+
+As for definitions you can define state attributes by a Closure or a simple array
+
+Apply states during the model building in the bellow way. States combination is allowed.
+
+```php
+$bar = factory(Bar::class)->states['withFoo', 'active']->create();
 ```
 
 ### Deleting models
