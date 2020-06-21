@@ -14,39 +14,62 @@ class ModelBuilder
     private $definition;
     private $states;
     private $faker;
+    private $times;
 
-    public function __construct(string $modelClass, $definition, Generator $faker, ?array $states = [])
-    {
+    public function __construct(
+        string $modelClass,
+        $definition,
+        Generator $faker,
+        ?array $states = [],
+        ?int $times = null
+    ) {
         $this->modelClass = $modelClass;
         $this->definition = $definition;
         $this->states = $states;
         $this->faker = $faker;
+        $this->times = $times;
     }
 
     /**
      * @param array|null $attributes
-     * @return Entity
+     * @return Entity|array
      * @throws ModelNotFoundException
      */
     public function create(?array $attributes = [])
     {
-        $model = $this->make($attributes);
-        $this->persist($model);
+        $models = $this->make($attributes);
+        if (is_array($models)) {
+            foreach ($models as $model) {
+                $this->persist($model);
+            }
+        } else {
+            $this->persist($models);
+        }
 
-        return $model;
+
+        return $models;
     }
 
     /**
      * @param array|null $attributes
-     * @return Entity
+     * @return Entity|array
      * @throws ModelNotFoundException
      */
-    public function make(?array $attributes = []): Entity
+    public function make(?array $attributes = [])
     {
-        $model = $this->makeModel($this->modelClass);
-        $this->setModelAttributes($model, $attributes);
+        if ($this->times && $this->times > 1) {
+            $models = [];
+            for ($i = 0; $i < $this->times; $i++) {
+                $model = $this->makeModel($this->modelClass);
+                $this->setModelAttributes($model, $attributes);
+                $models[] = $model;
+            }
+        } else {
+            $models = $this->makeModel($this->modelClass);
+            $this->setModelAttributes($models, $attributes);
+        }
 
-        return $model;
+        return $models;
     }
 
     /**
