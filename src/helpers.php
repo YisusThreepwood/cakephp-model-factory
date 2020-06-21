@@ -5,9 +5,9 @@ use Chustilla\ModelFactory\Factory;
 use \Cake\ORM\Entity;
 
 if (!function_exists('factory')) {
-    function factory(string $class): Factory
+    function factory(string $class, ?int $times = null): Factory
     {
-        return Factory::getInstance()->getFactoryOf($class);
+        return Factory::getInstance()->getFactoryOf($class, $times);
     }
 }
 

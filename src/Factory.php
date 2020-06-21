@@ -18,6 +18,8 @@ class Factory
     private $repositoriesForTruncating = [];
     private $faker;
     private $states = [];
+    private $times;
+
     /**
      * @var array|string
      */
@@ -82,13 +84,13 @@ class Factory
 
     /**
      * @param array|null $attributes
-     * @return Entity
-     * @throws Exceptions\ModelNotFoundException
+     * @return Entity|array
      */
     public function create(?array $attributes = [])
     {
         $statesToApply = $this->currentStates;
-        $model = (new ModelBuilder(
+
+        $models = (new ModelBuilder(
             $this->currentDefinition,
             $this->definitions[$this->currentDefinition],
             $this->faker,
@@ -98,11 +100,25 @@ class Factory
                     return  in_array($stateName, $statesToApply);
                 },
                 ARRAY_FILTER_USE_KEY
-            )
+            ),
+            $this->times
         ))->create($attributes);
-        $this->addTableForTruncatingFrom($model);
 
-        return $model;
+        $this->times = null;
+        $this->addTablesForTruncatingFrom($models);
+
+        return $models;
+    }
+
+    private function addTablesForTruncatingFrom($models): void
+    {
+        if (is_array($models)) {
+            foreach ($models as $model) {
+                $this->addTableForTruncatingFrom($model);
+            }
+        } else {
+            $this->addTableForTruncatingFrom($models);
+        }
     }
 
     private function addTableForTruncatingFrom(Entity $model): void
@@ -113,17 +129,41 @@ class Factory
         }
     }
 
+    public function make(?array $attributes = [])
+    {
+        $statesToApply = $this->currentStates;
+
+        $models = (new ModelBuilder(
+            $this->currentDefinition,
+            $this->definitions[$this->currentDefinition],
+            $this->faker,
+            array_filter(
+                $statesToApply ? $this->states[$this->currentDefinition] : [],
+                function (string $stateName) use ($statesToApply){
+                    return  in_array($stateName, $statesToApply);
+                },
+                ARRAY_FILTER_USE_KEY
+            ),
+            $this->times
+        ))->make($attributes);
+
+        $this->times = null;
+
+        return $models;
+    }
+
     /**
      * @param string $class
      * @return $this
      * @throws DefinitionNotFoundException
      */
-    public function getFactoryOf(string $class): Factory
+    public function getFactoryOf(string $class, ?int $times = null): Factory
     {
         if (!$this->hasDefinition($class)) {
             throw new DefinitionNotFoundException($class);
         }
         $this->currentDefinition = $class;
+        $this->times = $times;
         $this->currentStates = [];
         return $this;
     }

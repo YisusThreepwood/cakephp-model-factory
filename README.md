@@ -86,11 +86,17 @@ class FooServiceTest extends TestCase
 }
 ```
 
-That will create a full populate entity and save it in the datasurce defined for testing.
+That will create a full populate entity and save it in the datasource defined for testing.
 If you don't need to persist the data you can use the *make()* method
 
 ```php
 $bar = factory(Bar::class)->make();
+```
+
+You may also create an array of may models by passing the number of models to the helper
+
+```php
+$bar = factory(Bar::class, 3)->create();
 ```
 
 ### Override model definition data
